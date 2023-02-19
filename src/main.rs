@@ -21,14 +21,17 @@ fn main() {
         let timeout = Duration::from_secs(1);
         let language = handle.read_languages(timeout).unwrap()[0];
 
-        // println!("lang:{:?}", language);
-        // println!("descri:{:?}", device_descriptor.product_string_index());
         let product_str = match handle.read_product_string(language, &device_descriptor, timeout) {
             Ok(s) => s,
-            Err(_) => String::from("Error: unable to read string"),
+            Err(_) => String::from("unable to read string descriptor"),
         };
 
         println!("Product: {}", product_str);
         println!("-----------------------------")
     }
+}
+
+fn _read_frame() -> u8 {
+    // ToDo: Read frame from a USB device and return an ascii code
+    0
 }

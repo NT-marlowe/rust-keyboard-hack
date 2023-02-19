@@ -1,5 +1,30 @@
-use rusb::{Device, DeviceDescriptor, Direction, TransferType, UsbContext};
+use rusb::{
+    Device, DeviceDescriptor, DeviceHandle, Direction, GlobalContext, TransferType, UsbContext,
+};
+use std::time::Duration;
 
+pub fn read_ascii_array<T: UsbContext>(
+    device: &mut Device<T>,
+    device_desc: DeviceDescriptor,
+    handle: DeviceHandle<GlobalContext>,
+    transfer_type: TransferType,
+    buf: &mut [u8],
+) -> Result<usize, String> {
+    let endpoint_address = match find_readable_endpoint_address(device, device_desc, transfer_type)
+    {
+        Some(address) => address,
+        None => return Err(String::from("endpoint not found")),
+    };
+
+    // endpoint_address is expected to be 81
+    let timeout = Duration::from_secs(10);
+    match handle.read_interrupt(endpoint_address, buf, timeout) {
+        Ok(n_byte) => Ok(n_byte),
+        Err(e) => Err(format!("read_interrupt failed: {:?}", e)),
+    }
+}
+
+// この関数は正しく実装されていることが保証されている
 fn find_readable_endpoint_address<T: UsbContext>(
     device: &mut Device<T>,
     device_desc: DeviceDescriptor,

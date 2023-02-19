@@ -1,11 +1,11 @@
 mod frame;
 use rusb;
-use std::time::Duration;
 
 fn main() {
-    // let target_vid: u16 = 0x0c45;
-    // let target_pid: u16 = 0x7680;
-    for device in rusb::devices().unwrap().iter() {
+    let target_vid: u16 = 0x0c45;
+    let target_pid: u16 = 0x7680;
+    let mut buf: [u8; 256] = [0; 256];
+    for mut device in rusb::devices().unwrap().iter() {
         let device_descriptor = device.device_descriptor().unwrap();
 
         println!(
@@ -16,20 +16,26 @@ fn main() {
             device_descriptor.product_id()
         );
 
+        if device_descriptor.vendor_id() != target_vid
+            || device_descriptor.product_id() != target_pid
+        {
+            continue;
+        }
+
         let handle = match device.open() {
             Ok(handle) => handle,
             Err(e) => panic!("{}", e),
         };
 
-        let timeout = Duration::from_secs(1);
-        let language = handle.read_languages(timeout).unwrap()[0];
-
-        let product_str = match handle.read_product_string(language, &device_descriptor, timeout) {
-            Ok(s) => s,
-            Err(_) => String::from("unable to read string descriptor"),
-        };
-
-        println!("Product: {}", product_str);
-        println!("-----------------------------")
+        match frame::read_ascii_array(
+            &mut device,
+            device_descriptor,
+            handle,
+            rusb::TransferType::Interrupt,
+            &mut buf,
+        ) {
+            Ok(n) => println!("n is {}", n),
+            Err(e) => panic!("{}", e),
+        }
     }
 }

@@ -1,7 +1,10 @@
+mod frame;
 use rusb;
 use std::time::Duration;
 
 fn main() {
+    // let target_vid: u16 = 0x0c45;
+    // let target_pid: u16 = 0x7680;
     for device in rusb::devices().unwrap().iter() {
         let device_descriptor = device.device_descriptor().unwrap();
 
@@ -29,9 +32,4 @@ fn main() {
         println!("Product: {}", product_str);
         println!("-----------------------------")
     }
-}
-
-fn _read_frame() -> u8 {
-    // ToDo: Read frame from a USB device and return an ascii code
-    0
 }

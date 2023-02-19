@@ -2,8 +2,8 @@ mod frame;
 use rusb;
 
 fn main() {
-    let target_vid: u16 = 0x0c45;
-    let target_pid: u16 = 0x7680;
+    let target_vid: u16 = 0x046d;
+    let target_pid: u16 = 0xc53f;
     let mut buf: [u8; 256] = [0; 256];
     for mut device in rusb::devices().unwrap().iter() {
         let device_descriptor = device.device_descriptor().unwrap();
@@ -22,7 +22,7 @@ fn main() {
             continue;
         }
 
-        let handle = match device.open() {
+        let mut handle = match device.open() {
             Ok(handle) => handle,
             Err(e) => panic!("{}", e),
         };
@@ -30,7 +30,7 @@ fn main() {
         match frame::read_ascii_array(
             &mut device,
             device_descriptor,
-            handle,
+            &mut handle,
             rusb::TransferType::Interrupt,
             &mut buf,
         ) {

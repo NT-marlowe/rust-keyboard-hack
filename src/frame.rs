@@ -11,6 +11,7 @@ struct Endpoint {
     iface: u8,
     setting: u8,
     address: u8,
+    protocol_code: u8,
 }
 
 pub fn read_ascii_array<T: UsbContext>(
@@ -20,42 +21,47 @@ pub fn read_ascii_array<T: UsbContext>(
     transfer_type: TransferType,
     buf: &mut [u8],
 ) -> Result<usize, String> {
-    let endpoint = match find_readable_endpoint(device, device_desc, transfer_type)
+    let endpoints = match find_readable_endpoint(device, device_desc, transfer_type)
     {
-        Some(endpoint) => endpoint,
+        Some(endpoints) => endpoints,
         None => return Err(String::from("endpoint not found")),
     };
 
-    // endpoint_address is expected to be 82
+    for endpoint in endpoints {
+        // endpoint_address is expected to be 82
     println!("endpoint address: 0x{:4x}", endpoint.address);
+    println!("endpoint: {:?}", endpoint);
 
-    // とOS側のデータ転送要求と競合して？I/Oエラーが出る　https://github.com/libusb/libusb/wiki/FAQ#user-content-Does_libusb_support_USB_HID_devices
-    let has_kernel_driver = match handle.kernel_driver_active(endpoint.iface) {
-        Ok(true) => {
-            handle.detach_kernel_driver(endpoint.iface).ok();
-            true
-        }
-        _ => false,
-    };
-    println!("has kernel driver? {}", has_kernel_driver);
+    // // これを実行しないとOS側のデータ転送要求と競合して？I/Oエラーが出る　https://github.com/libusb/libusb/wiki/FAQ#user-content-Does_libusb_support_USB_HID_devices
+    // let has_kernel_driver = match handle.kernel_driver_active(endpoint.iface) {
+    //     Ok(true) => {
+    //         handle.detach_kernel_driver(endpoint.iface).ok();
+    //         true
+    //     }
+    //     _ => false,
+    // };
+    // println!("has kernel driver? {}", has_kernel_driver);
 
-    let result = match configure_endpoint(handle, &endpoint) {
-        Ok(_) => {
-                let timeout = Duration::from_secs(5);
-                match handle.read_interrupt(endpoint.address, buf, timeout) {
-                    Ok(n_byte) => Ok(n_byte),
-                    Err(e) => Err(format!("read_interrupt failed: {:?}", e)),
-                }
-        }
-        Err(err) => Err(format!("could not configure endpoint: {}", err)),
-    };
+    // let result = match configure_endpoint(handle, &endpoint) {
+    //     Ok(_) => {
+    //             let timeout = Duration::from_secs(5);
+    //             match handle.read_interrupt(endpoint.address, buf, timeout) {
+    //                 Ok(n_byte) => Ok(n_byte),
+    //                 Err(e) => Err(format!("read_interrupt failed: {:?}", e)),
+    //             }
+    //     }
+    //     Err(err) => Err(format!("could not configure endpoint: {}", err)),
+    // };
 
 
-    if has_kernel_driver {
-        handle.attach_kernel_driver(endpoint.iface).ok();
+    // if has_kernel_driver {
+    //     handle.attach_kernel_driver(endpoint.iface).ok();
+    // }
     }
 
-    result
+    
+
+    Ok(0)
 }
 
 // この関数は正しく実装されていることが保証されている
@@ -63,30 +69,34 @@ fn find_readable_endpoint<T: UsbContext>(
     device: &mut Device<T>,
     device_desc: DeviceDescriptor,
     transfer_type: TransferType,
-) -> Option<Endpoint> {
+) -> Option<Vec<Endpoint>> {
     for n in 0..device_desc.num_configurations() {
         let config_desc = match device.config_descriptor(n) {
             Ok(c) => c,
             Err(_) => continue,
         };
 
+        let mut endpoints: Vec<Endpoint> = Vec::new();
+
         for interface in config_desc.interfaces() {
             for interface_desc in interface.descriptors() {
                 for endpoint_desc in interface_desc.endpoint_descriptors() {
                     if endpoint_desc.direction() == Direction::In
                         && endpoint_desc.transfer_type() == transfer_type
-                            && interface_desc.protocol_code() == 2 // Mouse
                     {
-                        return Some(Endpoint {
+                        endpoints.push(Endpoint {
                             config: config_desc.number(),
                             iface: interface_desc.interface_number(),
                             setting: interface_desc.setting_number(),
                             address: endpoint_desc.address(),
+                            protocol_code: interface_desc.protocol_code(),
                         });
                     }
                 }
             }
         }
+
+        return Some(endpoints);
     }
     None
 }
@@ -102,4 +112,6 @@ fn configure_endpoint<T: UsbContext>(
     handle.set_alternate_setting(endpoint.iface, endpoint.setting)?; // Activate an alternate setting for an interface.
     Ok(()) // could not configure endpoint: Resource busy
     // dmesg: "usbfs: interface 0 claimed by usbhid while 'rust-keyboard-h' sets config #1"
+    // TODO: 多分Interfaceが3つあるのは他のアプリがClaimしているのが原因？
+    // You cannot change/reset configuration if other applications or drivers have claimed interfaces.
 }

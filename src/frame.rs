@@ -27,41 +27,47 @@ pub fn read_ascii_array<T: UsbContext>(
         None => return Err(String::from("endpoint not found")),
     };
 
+    let mut result = Ok(0);
+
     for endpoint in endpoints {
         // endpoint_address is expected to be 82
-    println!("endpoint address: 0x{:4x}", endpoint.address);
-    println!("endpoint: {:?}", endpoint);
+        println!("endpoint address: 0x{:4x}", endpoint.address);
+        println!("endpoint: {:?}", endpoint);
 
-    // // これを実行しないとOS側のデータ転送要求と競合して？I/Oエラーが出る　https://github.com/libusb/libusb/wiki/FAQ#user-content-Does_libusb_support_USB_HID_devices
-    // let has_kernel_driver = match handle.kernel_driver_active(endpoint.iface) {
-    //     Ok(true) => {
-    //         handle.detach_kernel_driver(endpoint.iface).ok();
-    //         true
-    //     }
-    //     _ => false,
-    // };
-    // println!("has kernel driver? {}", has_kernel_driver);
+        // if endpoint.protocol_code != 2 {
+        //     continue;
+        // }
 
-    // let result = match configure_endpoint(handle, &endpoint) {
-    //     Ok(_) => {
-    //             let timeout = Duration::from_secs(5);
-    //             match handle.read_interrupt(endpoint.address, buf, timeout) {
-    //                 Ok(n_byte) => Ok(n_byte),
-    //                 Err(e) => Err(format!("read_interrupt failed: {:?}", e)),
-    //             }
-    //     }
-    //     Err(err) => Err(format!("could not configure endpoint: {}", err)),
-    // };
+        // これを実行しないとOS側のデータ転送要求と競合して？I/Oエラーが出る　https://github.com/libusb/libusb/wiki/FAQ#user-content-Does_libusb_support_USB_HID_devices
+        let has_kernel_driver = match handle.kernel_driver_active(endpoint.iface) {
+            Ok(true) => {
+                handle.detach_kernel_driver(endpoint.iface).ok();
+                true
+            }
+            _ => false,
+        };
+        println!("has kernel driver? {}", has_kernel_driver);
+
+        result = match configure_endpoint(handle, &endpoint) {
+            Ok(_) => {
+                    let timeout = Duration::from_secs(5);
+                    match handle.read_interrupt(endpoint.address, buf, timeout) {
+                        Ok(n_byte) => Ok(n_byte),
+                        Err(e) => Err(format!("read_interrupt failed: {:?}", e)),
+                    }
+            }
+            Err(err) => Err(format!("could not configure endpoint: {}", err)),
+        };
 
 
-    // if has_kernel_driver {
-    //     handle.attach_kernel_driver(endpoint.iface).ok();
-    // }
+        if has_kernel_driver {
+            handle.attach_kernel_driver(endpoint.iface).ok();
+        }
     }
 
     
 
-    Ok(0)
+    result
 }
 
 // この関数は正しく実装されていることが保証されている
@@ -108,8 +114,11 @@ fn configure_endpoint<T: UsbContext>(
     endpoint: &Endpoint,
 ) -> rusb::Result<()> {
     handle.set_active_configuration(endpoint.config)?; // "issue a SET_CONFIGURATION request using the current configuration, causing most USB-related device state to be reset (altsetting reset to zero, endpoint halts cleared, toggles reset)."
+    // source: https://github.com/libusb/libusb/blob/9e077421b8708d98c8d423423bd6678dca0ef2ae/libusb/core.c#L1733
     handle.claim_interface(endpoint.iface)?; // "You must claim the interface you wish to use before you can perform I/O on any of its endpoints. instruct the underlying operating system that your application wishes to take ownership of the interface."
+    // source: https://github.com/libusb/libusb/blob/9e077421b8708d98c8d423423bd6678dca0ef2ae/libusb/core.c#L1770
     handle.set_alternate_setting(endpoint.iface, endpoint.setting)?; // Activate an alternate setting for an interface.
+    // source: https://github.com/libusb/libusb/blob/9e077421b8708d98c8d423423bd6678dca0ef2ae/libusb/core.c#L1859
     Ok(()) // could not configure endpoint: Resource busy
     // dmesg: "usbfs: interface 0 claimed by usbhid while 'rust-keyboard-h' sets config #1"
     // TODO: 多分Interfaceが3つあるのは他のアプリがClaimしているのが原因？

@@ -29,7 +29,7 @@ pub fn read_ascii_array<T: UsbContext>(
 
     let mut result = Ok(0);
 
-    let mut result2 = Ok(0);
+    let mut result_mouse = Ok(0);
 
     for endpoint in endpoints {
         // endpoint_address is expected to be 82
@@ -52,7 +52,7 @@ pub fn read_ascii_array<T: UsbContext>(
 
         result = match configure_endpoint(handle, &endpoint) {
             Ok(_) => {
-                    let timeout = Duration::from_secs(5);
+                    let timeout = Duration::from_secs(1);
                     match handle.read_interrupt(endpoint.address, buf, timeout) {
                         Ok(n_byte) => Ok(n_byte),
                         Err(e) => Err(format!("read_interrupt failed: {:?}", e)),
@@ -62,7 +62,7 @@ pub fn read_ascii_array<T: UsbContext>(
         };
 
         if endpoint.protocol_code == 2 {
-            result2 = result.clone();
+            result_mouse = result.clone();
         }
 
         if has_kernel_driver {
@@ -72,7 +72,7 @@ pub fn read_ascii_array<T: UsbContext>(
 
     
 
-    result2
+    result_mouse
 }
 
 // この関数は正しく実装されていることが保証されている

@@ -34,7 +34,10 @@ fn main() {
             rusb::TransferType::Interrupt,
             &mut buf,
         ) {
-            Ok(n) => println!("n is {}", n),
+            Ok(n) => {
+                println!("n is {}", n);
+                println!("Received data: {:?}", &buf[0..n]);
+            },
             Err(e) => panic!("{}", e),
         }
     }

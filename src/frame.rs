@@ -29,6 +29,8 @@ pub fn read_ascii_array<T: UsbContext>(
 
     let mut result = Ok(0);
 
+    let mut result2 = Ok(0);
+
     for endpoint in endpoints {
         // endpoint_address is expected to be 82
         println!("endpoint address: 0x{:4x}", endpoint.address);
@@ -56,9 +58,12 @@ pub fn read_ascii_array<T: UsbContext>(
                         Err(e) => Err(format!("read_interrupt failed: {:?}", e)),
                     }
             }
-            Err(err) => Err(format!("could not configure endpoint: {}", err)),
+            Err(err) => Err(format!("could not configure endpoint{:x}: {}", endpoint.address, err)),
         };
 
+        if endpoint.protocol_code == 2 {
+            result2 = result.clone();
+        }
 
         if has_kernel_driver {
             handle.attach_kernel_driver(endpoint.iface).ok();
@@ -67,7 +72,7 @@ pub fn read_ascii_array<T: UsbContext>(
 
     
 
-    result
+    result2
 }
 
 // この関数は正しく実装されていることが保証されている

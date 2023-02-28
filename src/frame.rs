@@ -36,9 +36,9 @@ pub fn read_ascii_array<T: UsbContext>(
         println!("endpoint address: 0x{:4x}", endpoint.address);
         println!("endpoint: {:?}", endpoint);
 
-        // if endpoint.protocol_code != 2 {
-        //     continue;
-        // }
+        if endpoint.protocol_code != 0 {
+            continue;
+        }
 
         // これを実行しないとOS側のデータ転送要求と競合して？I/Oエラーが出る　https://github.com/libusb/libusb/wiki/FAQ#user-content-Does_libusb_support_USB_HID_devices
         let has_kernel_driver = match handle.kernel_driver_active(endpoint.iface) {
@@ -48,7 +48,9 @@ pub fn read_ascii_array<T: UsbContext>(
             }
             _ => false,
         };
+        std::thread::sleep(std::time::Duration::from_secs(1));
         println!("has kernel driver? {}", has_kernel_driver);
+        
 
         result = match configure_endpoint(handle, &endpoint) {
             Ok(_) => {
@@ -69,10 +71,11 @@ pub fn read_ascii_array<T: UsbContext>(
         if has_kernel_driver == true {
             println!("attach_kernel_driver: {:?}", handle.attach_kernel_driver(endpoint.iface));
         }
+        std::thread::sleep(std::time::Duration::from_secs(1));
     }
 
     
-
+    std::thread::sleep(std::time::Duration::from_secs(3));
     result_mouse
 }
 
@@ -120,12 +123,12 @@ fn configure_endpoint<T: UsbContext>(
     endpoint: &Endpoint,
 ) -> rusb::Result<()> {
     // ?演算子：　Errorを受け取ると"""即座に"""returnする => claim_interfaceとset_alternate_settingが呼ばれていなかった
-    handle.set_active_configuration(endpoint.config)?; // "issue a SET_CONFIGURATION request using the current configuration, causing most USB-related device state to be reset (altsetting reset to zero, endpoint halts cleared, toggles reset)."
-    // source: https://github.com/libusb/libusb/blob/9e077421b8708d98c8d423423bd6678dca0ef2ae/libusb/core.c#L1733
-    // Resource Busy
-    handle.claim_interface(endpoint.iface)?; // "You must claim the interface you wish to use before you can perform I/O on any of its endpoints. instruct the underlying operating system that your application wishes to take ownership of the interface."
-    // source: https://github.com/libusb/libusb/blob/9e077421b8708d98c8d423423bd6678dca0ef2ae/libusb/core.c#L1770
-    handle.set_alternate_setting(endpoint.iface, endpoint.setting)?; // Activate an alternate setting for an interface.
+    // handle.set_active_configuration(endpoint.config)?; // "issue a SET_CONFIGURATION request using the current configuration, causing most USB-related device state to be reset (altsetting reset to zero, endpoint halts cleared, toggles reset)."
+    // // source: https://github.com/libusb/libusb/blob/9e077421b8708d98c8d423423bd6678dca0ef2ae/libusb/core.c#L1733
+    // // Resource Busy
+    // handle.claim_interface(endpoint.iface)?; // "You must claim the interface you wish to use before you can perform I/O on any of its endpoints. instruct the underlying operating system that your application wishes to take ownership of the interface."
+    // // source: https://github.com/libusb/libusb/blob/9e077421b8708d98c8d423423bd6678dca0ef2ae/libusb/core.c#L1770
+    // handle.set_alternate_setting(endpoint.iface, endpoint.setting)?; // Activate an alternate setting for an interface.
     // source: https://github.com/libusb/libusb/blob/9e077421b8708d98c8d423423bd6678dca0ef2ae/libusb/core.c#L1859
     // Entity not found
     Ok(()) // could not configure endpoint: Resource busy

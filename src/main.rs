@@ -1,4 +1,6 @@
 mod frame;
+use std::thread::sleep_ms;
+
 use rusb;
 
 fn main() {

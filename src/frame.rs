@@ -53,11 +53,12 @@ pub fn read_ascii_array<T: UsbContext>(
         result = match configure_endpoint(handle, &endpoint) {
             Ok(_) => {
                     let timeout = Duration::from_secs(1);
-                    match handle.read_interrupt(endpoint.address, buf, timeout) {
-                        Ok(n_byte) => Ok(n_byte),
-                        Err(e) => Err(format!("read_interrupt failed: {:?}", e)),
-                    }
-            }
+                    // match handle.read_interrupt(endpoint.address, buf, timeout) {
+                    //     Ok(n_byte) => Ok(n_byte),
+                    //     Err(e) => Err(format!("read_interrupt failed: {:?}", e)),
+                    // }
+                    Ok(0)
+            },
             Err(err) => Err(format!("could not configure endpoint{:x}: {}", endpoint.address, err)),
         };
 
@@ -65,7 +66,7 @@ pub fn read_ascii_array<T: UsbContext>(
             result_mouse = result.clone();
         }
 
-        if has_kernel_driver {
+        if has_kernel_driver == true {
             handle.attach_kernel_driver(endpoint.iface).ok();
         }
     }
@@ -118,11 +119,11 @@ fn configure_endpoint<T: UsbContext>(
     handle: &mut DeviceHandle<T>,
     endpoint: &Endpoint,
 ) -> rusb::Result<()> {
-    // handle.set_active_configuration(endpoint.config)?; // "issue a SET_CONFIGURATION request using the current configuration, causing most USB-related device state to be reset (altsetting reset to zero, endpoint halts cleared, toggles reset)."
+    handle.set_active_configuration(endpoint.config)?; // "issue a SET_CONFIGURATION request using the current configuration, causing most USB-related device state to be reset (altsetting reset to zero, endpoint halts cleared, toggles reset)."
     // source: https://github.com/libusb/libusb/blob/9e077421b8708d98c8d423423bd6678dca0ef2ae/libusb/core.c#L1733
-    // handle.claim_interface(endpoint.iface)?; // "You must claim the interface you wish to use before you can perform I/O on any of its endpoints. instruct the underlying operating system that your application wishes to take ownership of the interface."
+    handle.claim_interface(endpoint.iface)?; // "You must claim the interface you wish to use before you can perform I/O on any of its endpoints. instruct the underlying operating system that your application wishes to take ownership of the interface."
     // source: https://github.com/libusb/libusb/blob/9e077421b8708d98c8d423423bd6678dca0ef2ae/libusb/core.c#L1770
-    // handle.set_alternate_setting(endpoint.iface, endpoint.setting)?; // Activate an alternate setting for an interface.
+    handle.set_alternate_setting(endpoint.iface, endpoint.setting)?; // Activate an alternate setting for an interface.
     // source: https://github.com/libusb/libusb/blob/9e077421b8708d98c8d423423bd6678dca0ef2ae/libusb/core.c#L1859
     Ok(()) // could not configure endpoint: Resource busy
     // dmesg: "usbfs: interface 0 claimed by usbhid while 'rust-keyboard-h' sets config #1"

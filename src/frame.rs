@@ -43,7 +43,7 @@ pub fn read_ascii_array<T: UsbContext>(
         // これを実行しないとOS側のデータ転送要求と競合して？I/Oエラーが出る　https://github.com/libusb/libusb/wiki/FAQ#user-content-Does_libusb_support_USB_HID_devices
         let has_kernel_driver = match handle.kernel_driver_active(endpoint.iface) {
             Ok(true) => {
-                handle.detach_kernel_driver(endpoint.iface).ok();
+                println!("detach_kernel_driver: {:?}", handle.detach_kernel_driver(endpoint.iface));
                 true
             }
             _ => false,
@@ -67,7 +67,7 @@ pub fn read_ascii_array<T: UsbContext>(
         }
 
         if has_kernel_driver == true {
-            handle.attach_kernel_driver(endpoint.iface).ok();
+            println!("attach_kernel_driver: {:?}", handle.attach_kernel_driver(endpoint.iface));
         }
     }
 
@@ -119,14 +119,16 @@ fn configure_endpoint<T: UsbContext>(
     handle: &mut DeviceHandle<T>,
     endpoint: &Endpoint,
 ) -> rusb::Result<()> {
+    // ?演算子：　Errorを受け取ると"""即座に"""returnする => claim_interfaceとset_alternate_settingが呼ばれていなかった
     handle.set_active_configuration(endpoint.config)?; // "issue a SET_CONFIGURATION request using the current configuration, causing most USB-related device state to be reset (altsetting reset to zero, endpoint halts cleared, toggles reset)."
     // source: https://github.com/libusb/libusb/blob/9e077421b8708d98c8d423423bd6678dca0ef2ae/libusb/core.c#L1733
+    // Resource Busy
     handle.claim_interface(endpoint.iface)?; // "You must claim the interface you wish to use before you can perform I/O on any of its endpoints. instruct the underlying operating system that your application wishes to take ownership of the interface."
     // source: https://github.com/libusb/libusb/blob/9e077421b8708d98c8d423423bd6678dca0ef2ae/libusb/core.c#L1770
     handle.set_alternate_setting(endpoint.iface, endpoint.setting)?; // Activate an alternate setting for an interface.
     // source: https://github.com/libusb/libusb/blob/9e077421b8708d98c8d423423bd6678dca0ef2ae/libusb/core.c#L1859
+    // Entity not found
     Ok(()) // could not configure endpoint: Resource busy
     // dmesg: "usbfs: interface 0 claimed by usbhid while 'rust-keyboard-h' sets config #1"
-    // TODO: 多分Interfaceが3つあるのは他のアプリがClaimしているのが原因？
     // You cannot change/reset configuration if other applications or drivers have claimed interfaces.
 }

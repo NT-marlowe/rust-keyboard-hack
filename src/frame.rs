@@ -15,8 +15,9 @@ struct Endpoint {
 }
 
 enum InterfaceProcol {
-  Keyboard = 1,
-  Mouse = 2,
+    Device = 0,
+    Keyboard = 1,
+    Mouse = 2,
 }
 
 pub fn read_ascii_array<T: UsbContext>(
@@ -56,7 +57,7 @@ pub fn read_ascii_array<T: UsbContext>(
         
     }
     for endpoint in endpoints.to_vec() {
-        if endpoint.protocol_code != 0 {
+        if endpoint.protocol_code != InterfaceProcol::Device as u8 {
             continue;
         }
         result = match configure_endpoint(handle, &endpoint) {

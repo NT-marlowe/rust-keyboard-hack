@@ -5,7 +5,7 @@ use rusb::{
 };
 use std::time::Duration;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Endpoint {
     config: u8,
     iface: u8,
@@ -31,18 +31,16 @@ pub fn read_ascii_array<T: UsbContext>(
 
     let mut result_mouse = Ok(0);
 
-    for endpoint in endpoints {
+    for endpoint in endpoints.to_vec() {
         // endpoint_address is expected to be 82
         println!("endpoint address: 0x{:4x}", endpoint.address);
         println!("endpoint: {:?}", endpoint);
 
-        if endpoint.protocol_code != 0 {
-            continue;
-        }
 
         // これを実行しないとOS側のデータ転送要求と競合して？I/Oエラーが出る　https://github.com/libusb/libusb/wiki/FAQ#user-content-Does_libusb_support_USB_HID_devices
         let has_kernel_driver = match handle.kernel_driver_active(endpoint.iface) {
             Ok(true) => {
+                println!("set_auto_detach_kernel_driver: {:?}", handle.set_auto_detach_kernel_driver(false));
                 println!("detach_kernel_driver: {:?}", handle.detach_kernel_driver(endpoint.iface));
                 true
             }
@@ -51,7 +49,11 @@ pub fn read_ascii_array<T: UsbContext>(
         std::thread::sleep(std::time::Duration::from_secs(1));
         println!("has kernel driver? {}", has_kernel_driver);
         
-
+    }
+    for endpoint in endpoints.to_vec() {
+        if endpoint.protocol_code != 0 {
+            continue;
+        }
         result = match configure_endpoint(handle, &endpoint) {
             Ok(_) => {
                     let timeout = Duration::from_secs(1);
@@ -68,9 +70,13 @@ pub fn read_ascii_array<T: UsbContext>(
             result_mouse = result.clone();
         }
 
-        if has_kernel_driver == true {
+    }
+
+    for endpoint in endpoints {
+        // if has_kernel_driver == true {
             println!("attach_kernel_driver: {:?}", handle.attach_kernel_driver(endpoint.iface));
-        }
+            // println!("release_interface: {:?}", handle.release_interface(endpoint.iface));
+        // }
         std::thread::sleep(std::time::Duration::from_secs(1));
     }
 
@@ -123,7 +129,7 @@ fn configure_endpoint<T: UsbContext>(
     endpoint: &Endpoint,
 ) -> rusb::Result<()> {
     // ?演算子：　Errorを受け取ると"""即座に"""returnする => claim_interfaceとset_alternate_settingが呼ばれていなかった
-    // handle.set_active_configuration(endpoint.config)?; // "issue a SET_CONFIGURATION request using the current configuration, causing most USB-related device state to be reset (altsetting reset to zero, endpoint halts cleared, toggles reset)."
+    handle.set_active_configuration(endpoint.config)?; // "issue a SET_CONFIGURATION request using the current configuration, causing most USB-related device state to be reset (altsetting reset to zero, endpoint halts cleared, toggles reset)."
     // // source: https://github.com/libusb/libusb/blob/9e077421b8708d98c8d423423bd6678dca0ef2ae/libusb/core.c#L1733
     // // Resource Busy
     // handle.claim_interface(endpoint.iface)?; // "You must claim the interface you wish to use before you can perform I/O on any of its endpoints. instruct the underlying operating system that your application wishes to take ownership of the interface."

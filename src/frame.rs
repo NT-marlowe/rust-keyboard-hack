@@ -14,6 +14,11 @@ struct Endpoint {
     protocol_code: u8,
 }
 
+enum InterfaceProcol {
+  Keyboard = 1,
+  Mouse = 2,
+}
+
 pub fn read_ascii_array<T: UsbContext>(
     device: &mut Device<T>,
     device_desc: DeviceDescriptor,
@@ -80,7 +85,7 @@ pub fn read_ascii_array<T: UsbContext>(
         std::thread::sleep(std::time::Duration::from_secs(1));
     }
 
-    
+
     std::thread::sleep(std::time::Duration::from_secs(3));
     result_mouse
 }
@@ -133,7 +138,7 @@ fn configure_endpoint<T: UsbContext>(
     // // source: https://github.com/libusb/libusb/blob/9e077421b8708d98c8d423423bd6678dca0ef2ae/libusb/core.c#L1733
     // // Resource Busy
     // handle.claim_interface(endpoint.iface)?; // "You must claim the interface you wish to use before you can perform I/O on any of its endpoints. instruct the underlying operating system that your application wishes to take ownership of the interface."
-    // // source: https://github.com/libusb/libusb/blob/9e077421b8708d98c8d423423bd6678dca0ef2ae/libusb/core.c#L1770
+    // source: https://github.com/libusb/libusb/blob/9e077421b8708d98c8d423423bd6678dca0ef2ae/libusb/core.c#L1770
     // handle.set_alternate_setting(endpoint.iface, endpoint.setting)?; // Activate an alternate setting for an interface.
     // source: https://github.com/libusb/libusb/blob/9e077421b8708d98c8d423423bd6678dca0ef2ae/libusb/core.c#L1859
     // Entity not found

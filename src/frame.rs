@@ -35,8 +35,6 @@ pub fn read_ascii_array<T: UsbContext>(
 
     let mut result = Ok(0);
 
-    let mut result_mouse = Ok(0);
-
     for endpoint in endpoints.to_vec() {
         // endpoint_address is expected to be 82
         println!("endpoint address: 0x{:4x}", endpoint.address);
@@ -54,7 +52,6 @@ pub fn read_ascii_array<T: UsbContext>(
             }
             _ => false,
         };
-        std::thread::sleep(std::time::Duration::from_secs(1));
         println!("has kernel driver? {}", has_kernel_driver);
         
     }
@@ -64,22 +61,15 @@ pub fn read_ascii_array<T: UsbContext>(
         }
         result = match configure_endpoint(handle, &endpoint) {
             Ok(_) => {
-                    let timeout = Duration::from_secs(1);
-                    if endpoint.protocol_code == InterfaceProcol::Mouse as u8 {
-                        match handle.read_interrupt(endpoint.address, buf, timeout) {
-                            Ok(n_byte) => Ok(n_byte),
-                            Err(e) => Err(format!("read_interrupt failed: {:?}", e)),
-                        }
-                    } else {
-                        Ok(0)
-                    }
+                let timeout = Duration::from_secs(5);
+                println!("Send some USB packet within 5 seconds from now.");
+                match handle.read_interrupt(endpoint.address, buf, timeout) {
+                    Ok(n_byte) => Ok(n_byte),
+                    Err(e) => Err(format!("read_interrupt failed: {:?}", e)),
+                }
             },
             Err(err) => Err(format!("could not configure endpoint{:x}: {}", endpoint.address, err)),
         };
-
-        if endpoint.protocol_code == InterfaceProcol::Mouse as u8 {
-            result_mouse = result.clone();
-        }
 
         // Interface must be released before let OS attach driver to it if it is claimed; otherwise attach_kernel_driver
         // throws Resource Busy error.
@@ -91,12 +81,9 @@ pub fn read_ascii_array<T: UsbContext>(
             println!("attach_kernel_driver: {:?}", handle.attach_kernel_driver(endpoint.iface));
             // println!("release_interface: {:?}", handle.release_interface(endpoint.iface));
         // }
-        std::thread::sleep(std::time::Duration::from_secs(1));
     }
 
-
-    std::thread::sleep(std::time::Duration::from_secs(3));
-    result_mouse
+    result
 }
 
 // この関数は正しく実装されていることが保証されている

@@ -1,11 +1,30 @@
 mod frame;
-use std::thread::sleep_ms;
 
 use rusb;
 
+fn convert_argument(input: &str) -> (u16, u16) {
+    let ids = input.split(':').collect::<Vec<_>>();
+    if ids.len() != 2 {
+        panic!("Invalid input. Make sure it is in the correct format (hex:hex)");
+    }
+    let mut ret: Vec<u16> = Vec::new();
+    for id in ids {
+        ret.push(u16::from_str_radix(id, 16)
+            .expect("Provide hexadecimal values. Do not add '0x'"));
+    }
+    return (ret[0], ret[1]);
+}
+
 fn main() {
-    let target_vid: u16 = 0x046d;
-    let target_pid: u16 = 0xc53f;
+    let args: Vec<String> = std::env::args().collect();
+
+    if args.len() < 2 {
+        println!("usage: rust-keyboard-hack vid:pid");
+        return;
+    }
+
+    let (target_vid, target_pid) = convert_argument(args[1].as_ref());
+
     let mut buf: [u8; 256] = [0; 256];
     for mut device in rusb::devices().unwrap().iter() {
         let device_descriptor = device.device_descriptor().unwrap();

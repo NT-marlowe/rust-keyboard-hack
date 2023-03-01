@@ -65,15 +65,14 @@ pub fn read_ascii_array<T: UsbContext>(
         result = match configure_endpoint(handle, &endpoint) {
             Ok(_) => {
                     let timeout = Duration::from_secs(1);
-                    // if endpoint.protocol_code != InterfaceProcol::Mouse as u8 {
-                    //     match handle.read_interrupt(endpoint.address, buf, timeout) {
-                    //         Ok(n_byte) => Ok(n_byte),
-                    //         Err(e) => Err(format!("read_interrupt failed: {:?}", e)),
-                    //     }
-                    // } else {
-                    //     Ok(0)
-                    // }
-                    Ok(0)
+                    if endpoint.protocol_code == InterfaceProcol::Mouse as u8 {
+                        match handle.read_interrupt(endpoint.address, buf, timeout) {
+                            Ok(n_byte) => Ok(n_byte),
+                            Err(e) => Err(format!("read_interrupt failed: {:?}", e)),
+                        }
+                    } else {
+                        Ok(0)
+                    }
             },
             Err(err) => Err(format!("could not configure endpoint{:x}: {}", endpoint.address, err)),
         };
@@ -81,6 +80,9 @@ pub fn read_ascii_array<T: UsbContext>(
         if endpoint.protocol_code == InterfaceProcol::Mouse as u8 {
             result_mouse = result.clone();
         }
+
+        // Interface must be released before let OS attach driver to it if it is claimed; otherwise attach_kernel_driver
+        // throws Resource Busy error.
         println!("release_interface: {:?}", handle.release_interface(endpoint.iface));
     }
 

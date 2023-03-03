@@ -2,28 +2,28 @@ mod frame;
 
 use rusb;
 
-fn convert_argument(input: &str) -> (u16, u16) {
-    let ids = input.split(':').collect::<Vec<_>>();
-    if ids.len() != 2 {
-        panic!("Invalid input. Make sure it is in the correct format (hex:hex)");
+fn convert_argument(input: &str) -> (u8, u8, u8) {
+    let ids = input.split('.').collect::<Vec<_>>();
+    if ids.len() != 3 {
+        panic!("Invalid input. Make sure it is in the correct format: hex.hex.hex");
     }
-    let mut ret: Vec<u16> = Vec::new();
+    let mut ret: Vec<u8> = Vec::new();
     for id in ids {
-        ret.push(u16::from_str_radix(id, 16)
+        ret.push(u8::from_str_radix(id, 16)
             .expect("Provide hexadecimal values. Do not add '0x'"));
     }
-    return (ret[0], ret[1]);
+    return (ret[0], ret[1], ret[2]);
 }
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 
     if args.len() < 2 {
-        println!("usage: rust-keyboard-hack vid:pid");
+        println!("usage: rust-keyboard-hack Bus.Device.EndPoint");
         return;
     }
 
-    let (target_vid, target_pid) = convert_argument(args[1].as_ref());
+    let (target_bus_num, target_address, target_endpoint) = convert_argument(args[1].as_ref());
 
     let mut buf: [u8; 256] = [0; 256];
     for mut device in rusb::devices().unwrap().iter() {
@@ -37,8 +37,8 @@ fn main() {
             device_descriptor.product_id()
         );
 
-        if device_descriptor.vendor_id() != target_vid
-            || device_descriptor.product_id() != target_pid
+        if device.bus_number() != target_bus_num
+            || device.address() != target_address
         {
             continue;
         }
@@ -54,6 +54,7 @@ fn main() {
             &mut handle,
             rusb::TransferType::Interrupt,
             &mut buf,
+            target_endpoint,
         ) {
             Ok(n) => {
                 println!("n is {}", n);

@@ -26,6 +26,7 @@ pub fn read_ascii_array<T: UsbContext>(
     handle: &mut DeviceHandle<GlobalContext>,
     transfer_type: TransferType,
     buf: &mut [u8],
+    target_endpoint: u8,
 ) -> Result<usize, String> {
     let endpoints = match find_readable_endpoint(device, device_desc, transfer_type)
     {
@@ -37,7 +38,7 @@ pub fn read_ascii_array<T: UsbContext>(
 
     for endpoint in endpoints.to_vec() {
         // endpoint_address is expected to be 82
-        println!("endpoint address: 0x{:4x}", endpoint.address);
+        println!("endpoint address: 0x{:2x}", endpoint.address);
         println!("endpoint: {:?}", endpoint);
     }
 
@@ -56,7 +57,7 @@ pub fn read_ascii_array<T: UsbContext>(
         
     }
     for endpoint in endpoints.to_vec() {
-        if endpoint.protocol_code != InterfaceProcol::Mouse as u8 {
+        if (endpoint.address % 16) != target_endpoint {
             continue;
         }
         result = match configure_endpoint(handle, &endpoint) {

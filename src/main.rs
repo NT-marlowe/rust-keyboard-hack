@@ -58,7 +58,14 @@ fn main() {
         ) {
             Ok(n) => {
                 println!("n is {}", n);
-                println!("Received data: {:?}", &buf[0..n]);
+                println!("Received data: {:?}", &buf[0..32]);
+                println!("Received data: {:?}", &buf[32..64]);
+                println!("Received data: {:?}", &buf[64..96]);
+                println!("Received data: {:?}", &buf[96..128]);
+                println!("Received data: {:?}", &buf[128..160]);
+                println!("Received data: {:?}", &buf[160..192]);
+                println!("Received data: {:?}", &buf[192..224]);
+                println!("Received data: {:?}", &buf[224..256]);
             },
             Err(e) => panic!("{}", e),
         }

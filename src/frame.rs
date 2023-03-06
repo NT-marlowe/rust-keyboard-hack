@@ -62,8 +62,12 @@ pub fn read_ascii_array<T: UsbContext>(
         }
         result = match configure_endpoint(handle, &endpoint) {
             Ok(_) => {
-                let timeout = Duration::from_secs(5);
-                println!("Send some USB packet within 5 seconds from now.");
+                // timeout=0 means no timeout
+                let timeout = Duration::from_secs(0);
+                // println!("Send some USB packet within 5 seconds from now.");
+                println!("Push a key.");
+                // read_interrupt automatically decodes USB protocol and only HID DATA is stored in "buf".
+                // HID DATA size is 32 bytes for each key push and release.
                 match handle.read_interrupt(endpoint.address, buf, timeout) {
                     Ok(n_byte) => Ok(n_byte),
                     Err(e) => Err(format!("read_interrupt failed: {:?}", e)),
